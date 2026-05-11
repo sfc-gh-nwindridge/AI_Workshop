@@ -1,18 +1,16 @@
 /*=============================================================================
-  KYC SUPERHERO WORKSHOP - STEP 1: ENVIRONMENT SETUP
+  KYC SUPERHERO WORKSHOP - STEP 1: DATABASE & DOCUMENT SETUP
   ===========================================================================
-  This script sets up the complete environment for the KYC Superhero 
-  Document Processing pipeline, including:
-  - Database and schemas (RAW, DOCUMENTS, CURATED, ANALYTICS)
-  - Virtual warehouse for processing
-  - Git integration to pull superhero documents
-  - Internal stages for document processing
+  Creates the database, schemas, Git repository clone, internal stages,
+  and copies superhero documents (ID cards + KYC forms) into stages.
+  
+  Prerequisites: Run 00_demo_environment.sql first (as ACCOUNTADMIN)
+  Run as: KYC_WORKSHOP_ROLE
   ===========================================================================*/
 
 -- ============================================================================
 -- 1.1 ROLE & WAREHOUSE
 -- ============================================================================
--- Prerequisites: Run 00_demo_environment.sql first (as ACCOUNTADMIN)
 
 USE ROLE KYC_WORKSHOP_ROLE;
 USE WAREHOUSE KYC_WORKSHOP_WH;
@@ -45,12 +43,10 @@ CREATE OR REPLACE SCHEMA KYC_SUPERHERO_DB.ANALYTICS
 -- ============================================================================
 -- The superhero documents (ID cards + KYC forms) are hosted on GitHub.
 -- We use Snowflake's Git integration to bring them into a repository stage.
-
--- API Integration created in 00_demo_environment.sql (requires ACCOUNTADMIN)
--- Here we just create the Git repository using that integration.
+-- API Integration was created in 00_demo_environment.sql (requires ACCOUNTADMIN).
 
 CREATE OR REPLACE GIT REPOSITORY KYC_SUPERHERO_DB.DOCUMENTS.SUPERHERO_REPO
-  API_INTEGRATION = kyc_git_integration
+  API_INTEGRATION = kyc_workshop_git_integration
   ORIGIN = 'https://github.com/jumoral/snowflake_ai_innovation_day.git';
 
 -- Fetch latest from remote

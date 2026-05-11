@@ -11,6 +11,7 @@
   - Regulatory readiness summary
   ===========================================================================*/
 
+USE ROLE KYC_WORKSHOP_ROLE;
 USE DATABASE KYC_SUPERHERO_DB;
 USE SCHEMA ANALYTICS;
 USE WAREHOUSE KYC_WORKSHOP_WH;

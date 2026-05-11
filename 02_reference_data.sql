@@ -12,6 +12,7 @@
   - Thor → foreign PEP (Asgardian royalty)
   ===========================================================================*/
 
+USE ROLE KYC_WORKSHOP_ROLE;
 USE DATABASE KYC_SUPERHERO_DB;
 USE SCHEMA RAW;
 USE WAREHOUSE KYC_WORKSHOP_WH;

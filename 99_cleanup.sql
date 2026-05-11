@@ -22,16 +22,12 @@ DROP WAREHOUSE IF EXISTS KYC_WORKSHOP_WH;
 -- ============================================================================
 -- Drop API integration
 -- ============================================================================
-DROP INTEGRATION IF EXISTS kyc_git_integration;
+DROP INTEGRATION IF EXISTS kyc_workshop_git_integration;
 
 -- ============================================================================
--- Drop user
+-- Revoke account-level privileges and drop role
 -- ============================================================================
-DROP USER IF EXISTS KYC_WORKSHOP_USER;
-
--- ============================================================================
--- Drop role (must revoke from hierarchy first)
--- ============================================================================
+REVOKE CREATE DATABASE ON ACCOUNT FROM ROLE KYC_WORKSHOP_ROLE;
 REVOKE ROLE KYC_WORKSHOP_ROLE FROM ROLE SYSADMIN;
 DROP ROLE IF EXISTS KYC_WORKSHOP_ROLE;
 

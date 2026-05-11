@@ -15,6 +15,7 @@
   - Provides APPROVED / REJECTED / ESCALATE decision
   ===========================================================================*/
 
+USE ROLE KYC_WORKSHOP_ROLE;
 USE DATABASE KYC_SUPERHERO_DB;
 USE SCHEMA CURATED;
 USE WAREHOUSE KYC_WORKSHOP_WH;
