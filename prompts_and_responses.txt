@@ -1,0 +1,716 @@
+*** Prompt 1: ***
+I want to create an AI workshop for a Counter Party Risk department at a major international investment bank.
+
+The workshop is intended to get senior technical leadership excited in Snowflake's Cortex offerings, to see how powerful the capabilities are, 
+how quickly and easily the can build solutions. I will demo Cortex Code but the aim is to get them coding as they are already familiar with AI coding assistants
+
+There will be 2 use cases they can build. For now just focus on the 1st use case.
+
+The first use case is based on a Know Your Customer (KYC) use case but based on suerheros to make it fun. 
+This will focus on document processing (what was DocAI) and being able to automate pipelines to process the documents, extract named entities, cross-reference to existing data about those superheros and flagged where Enhanced Due Diligence checks are needed
+Read the github repo https://github.com/jumoral/snowflake_ai_innovation_day and plan out how to replicate the repo in Snowflake.
+
+*** Response 1: ***
+Proposed plan:
+───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ KYC Superhero Workshop - Use Case 1: Implementation Plan
+ 
+ Context
+ 
+ Reference Repo (jumoral/snowflake_ai_innovation_day): A resource-only repo containing 10 superhero ID card images (PNG) and 10 KYC form PDFs. The actual pipeline logic needs to be built from scratch in Snowflake. It uses Git integration to bring files into Snowflake.
+ 
+ Snowflake Cortex Capabilities Available:
+ 
+ • AI_COMPLETE (multimodal) — vision models for extracting data from ID card images
+ • AI_EXTRACT — structured extraction from PDFs (entities, tables, lists)
+ • AI_PARSE_DOCUMENT — OCR/parse documents into structured text
+ • CORTEX.COMPLETE — LLM calls for reasoning/classification/EDD decision-making
+ • Dynamic Tables — automated pipeline refresh
+ • Cortex Search — hybrid search for cross-referencing against known data
+ 
+ Existing Pattern Reference: TAX_DOC_AI_DB in the account uses a clean schema pattern: RAW → CURATED → DOCUMENTS → ANALYTICS → GOVERNANCE.
+ 
+ ────────────────────────────────────────
+ 
+ Architecture Overview
+ 
+   ┌─────────────────────────────────────────────────────────────────────┐
+   │                    KYC_SUPERHERO_DB                                   │
+   ├──────────┬──────────┬───────────────┬────────────┬──────────────────┤
+   │   RAW    │ DOCUMENTS│   CURATED     │ ANALYTICS  │  GOVERNANCE      │
+   │          │          │               │            │                  │
+   │ HEROES   │ @ID_DOCS │ EXTRACTED_IDS │ EDD_FLAGS  │ AUDIT_LOG        │
+   │ WATCHLIST│ @KYC_FORMS│ EXTRACTED_KYC│ RISK_SCORES│                  │
+   │ SANCTIONS│          │ ENTITY_XREF  │ DASHBOARD  │                  │
+   └──────────┴──────────┴───────────────┴────────────┴──────────────────┘
+ 
+ Pipeline Flow:
+ 
+ 1. Documents staged → 2. AI_EXTRACT/AI_COMPLETE extracts entities → 3. Cross-reference to known hero data + watchlists → 4. EDD flags raised where risk detected
+ 
+ ────────────────────────────────────────
+ 
+ Implementation Steps
+ 
+ Step 1: Environment Setup
+ 
+ Create the database, schemas, warehouse, and Git integration:
+ 
+   -- Database and schemas
+   CREATE DATABASE KYC_SUPERHERO_DB COMMENT = 'AI Workshop: KYC Superhero Use Case';
+   CREATE SCHEMA KYC_SUPERHERO_DB.RAW COMMENT = 'Reference data: heroes, watchlists, sanctions';
+   CREATE SCHEMA KYC_SUPERHERO_DB.DOCUMENTS COMMENT = 'Document stages and registry';
+   CREATE SCHEMA KYC_SUPERHERO_DB.CURATED COMMENT = 'Extracted and cross-referenced entities';
+   CREATE SCHEMA KYC_SUPERHERO_DB.ANALYTICS COMMENT = 'EDD flags, risk scoring, dashboards';
+   
+   -- Warehouse
+   CREATE WAREHOUSE KYC_WORKSHOP_WH
+     WAREHOUSE_SIZE = 'MEDIUM'
+     AUTO_SUSPEND = 120
+     AUTO_RESUME = TRUE;
+   
+   -- Git integration (public repo, no auth needed)
+   CREATE OR REPLACE API INTEGRATION kyc_git_integration
+     API_PROVIDER = git_https_api
+     API_ALLOWED_PREFIXES = ('https://github.com/jumoral/snowflake_ai_innovation_day')
+     ENABLED = TRUE;
+   
+   CREATE OR REPLACE GIT REPOSITORY KYC_SUPERHERO_DB.DOCUMENTS.SUPERHERO_REPO
+     API_INTEGRATION = kyc_git_integration
+     ORIGIN = 'https://github.com/jumoral/snowflake_ai_innovation_day.git';
+ 
+ Step 2: Document Stages & Loading
+ 
+   -- Internal stages for processed documents
+   CREATE STAGE KYC_SUPERHERO_DB.DOCUMENTS.ID_DOCUMENTS
+     DIRECTORY = (ENABLE = TRUE)
+     ENCRYPTION = (TYPE = 'SNOWFLAKE_SSE')
+     COMMENT = 'Superhero ID card images';
+   
+   CREATE STAGE KYC_SUPERHERO_DB.DOCUMENTS.KYC_FORMS
+     DIRECTORY = (ENABLE = TRUE)
+     ENCRYPTION = (TYPE = 'SNOWFLAKE_SSE')
+     COMMENT = 'KYC application form PDFs';
+   
+   -- Copy files from Git repo to stages
+   COPY FILES INTO @KYC_SUPERHERO_DB.DOCUMENTS.ID_DOCUMENTS
+     FROM @KYC_SUPERHERO_DB.DOCUMENTS.SUPERHERO_REPO/branches/main/resources/
+     PATTERN = '.*ID.*\.png';
+   
+   COPY FILES INTO @KYC_SUPERHERO_DB.DOCUMENTS.KYC_FORMS
+     FROM @KYC_SUPERHERO_DB.DOCUMENTS.SUPERHERO_REPO/branches/main/resources/
+     PATTERN = '.*KYC.*\.pdf';
+ 
+ Step 3: Reference Data (Superhero "Known Entities")
+ 
+   -- Known superhero database (the "existing data" to cross-reference against)
+   CREATE TABLE KYC_SUPERHERO_DB.RAW.HEROES (
+     HERO_ID INT,
+     HERO_NAME VARCHAR,
+     REAL_NAME VARCHAR,
+     ALIAS VARCHAR,
+     AFFILIATION VARCHAR,
+     RISK_LEVEL VARCHAR,     -- LOW, MEDIUM, HIGH, CRITICAL
+     KNOWN_ASSOCIATES ARRAY,
+     POWERS ARRAY,
+     LAST_KNOWN_LOCATION VARCHAR,
+     STATUS VARCHAR           -- ACTIVE, RETIRED, DECEASED, MISSING
+   );
+   
+   -- Watchlist / Sanctions (makes EDD flagging interesting)
+   CREATE TABLE KYC_SUPERHERO_DB.RAW.WATCHLIST (
+     ENTITY_NAME VARCHAR,
+     REASON VARCHAR,
+     RISK_CATEGORY VARCHAR,  -- TERRORISM, MONEY_LAUNDERING, SANCTIONS, PEP
+     DATE_ADDED DATE,
+     SOURCE VARCHAR,
+     ACTIVE BOOLEAN
+   );
+   
+   -- Insert sample data (10 Marvel heroes matching the documents)
+   INSERT INTO KYC_SUPERHERO_DB.RAW.HEROES VALUES
+     (1, 'Iron Man', 'Tony Stark', 'The Merchant of Death', 'Avengers', 'HIGH', 
+      ['Pepper Potts','War Machine','Spider-Man'], ['Genius','Powered Armor','Wealth'], 'New York', 'ACTIVE'),
+     (2, 'Captain America', 'Steve Rogers', 'The First Avenger', 'Avengers', 'LOW',
+      ['Bucky Barnes','Sam Wilson','Black Widow'], ['Super Soldier Serum','Shield'], 'Washington DC', 'ACTIVE'),
+     -- ... (10 heroes total, matching the 10 docs)
+   ;
+   
+   -- Watchlist entries that will trigger EDD
+   INSERT INTO KYC_SUPERHERO_DB.RAW.WATCHLIST VALUES
+     ('Stark Industries', 'Arms dealing history', 'SANCTIONS', '2024-01-15', 'SHIELD Intelligence', TRUE),
+     ('Hulk', 'Property destruction', 'TERRORISM', '2023-06-01', 'World Security Council', TRUE),
+     ('Loki', 'Invasion of New York', 'TERRORISM', '2012-05-04', 'SHIELD Intelligence', TRUE),
+     -- ... more entries
+   ;
+ 
+ Step 4: Document Processing with AI_EXTRACT & AI_COMPLETE
+ 
+   -- Process ID card images with AI_COMPLETE (multimodal vision)
+   CREATE TABLE KYC_SUPERHERO_DB.CURATED.EXTRACTED_IDS AS
+   SELECT
+     RELATIVE_PATH AS file_name,
+     AI_COMPLETE(
+       'claude-sonnet-4-6',
+       'Extract all information from this superhero identification card. Return structured JSON.',
+       TO_FILE('@KYC_SUPERHERO_DB.DOCUMENTS.ID_DOCUMENTS', RELATIVE_PATH),
+       {},
+       {
+         'type': 'json',
+         'schema': {
+           'type': 'object',
+           'properties': {
+             'full_name': {'type': 'string'},
+             'hero_alias': {'type': 'string'},
+             'id_number': {'type': 'string'},
+             'date_of_birth': {'type': 'string'},
+             'address': {'type': 'string'},
+             'affiliation': {'type': 'string'},
+             'classification': {'type': 'string'},
+             'issue_date': {'type': 'string'},
+             'expiry_date': {'type': 'string'}
+           }
+         }
+       }
+     ) AS extracted_data,
+     CURRENT_TIMESTAMP() AS processed_at
+   FROM DIRECTORY(@KYC_SUPERHERO_DB.DOCUMENTS.ID_DOCUMENTS);
+   
+   -- Process KYC forms with AI_EXTRACT
+   CREATE TABLE KYC_SUPERHERO_DB.CURATED.EXTRACTED_KYC AS
+   SELECT
+     RELATIVE_PATH AS file_name,
+     AI_EXTRACT(
+       TO_FILE('@KYC_SUPERHERO_DB.DOCUMENTS.KYC_FORMS', RELATIVE_PATH),
+       {
+         'applicant_name': 'Full name of the applicant',
+         'date_of_birth': 'Date of birth',
+         'nationality': 'Nationality or citizenship',
+         'residential_address': 'Full residential address',
+         'occupation': 'Stated occupation or profession',
+         'source_of_funds': 'Declared source of funds or income',
+         'purpose_of_account': 'Purpose for opening the account',
+         'politically_exposed': 'Is the person politically exposed (PEP)?',
+         'associated_entities': 'Any companies, organisations or associates mentioned',
+         'signature_present': 'Is the form signed?'
+       }
+     ) AS extracted_data,
+     CURRENT_TIMESTAMP() AS processed_at
+   FROM DIRECTORY(@KYC_SUPERHERO_DB.DOCUMENTS.KYC_FORMS);
+ 
+ Step 5: Entity Cross-Referencing
+ 
+   -- Cross-reference extracted entities against known heroes and watchlist
+   CREATE OR REPLACE VIEW KYC_SUPERHERO_DB.CURATED.ENTITY_CROSSREF AS
+   SELECT
+     k.file_name,
+     k.extracted_data:applicant_name::VARCHAR AS applicant_name,
+     h.HERO_ID,
+     h.HERO_NAME,
+     h.RISK_LEVEL AS known_risk_level,
+     h.AFFILIATION,
+     w.REASON AS watchlist_reason,
+     w.RISK_CATEGORY AS watchlist_category,
+     CASE
+       WHEN w.ENTITY_NAME IS NOT NULL THEN TRUE
+       ELSE FALSE
+     END AS watchlist_match,
+     CASE
+       WHEN h.RISK_LEVEL IN ('HIGH', 'CRITICAL') THEN TRUE
+       WHEN w.ENTITY_NAME IS NOT NULL THEN TRUE
+       WHEN k.extracted_data:politically_exposed::VARCHAR ILIKE '%yes%' THEN TRUE
+       ELSE FALSE
+     END AS edd_required
+   FROM KYC_SUPERHERO_DB.CURATED.EXTRACTED_KYC k
+   LEFT JOIN KYC_SUPERHERO_DB.RAW.HEROES h
+     ON LOWER(k.extracted_data:applicant_name::VARCHAR) ILIKE '%' || LOWER(h.REAL_NAME) || '%'
+     OR LOWER(k.extracted_data:applicant_name::VARCHAR) ILIKE '%' || LOWER(h.HERO_NAME) || '%'
+   LEFT JOIN KYC_SUPERHERO_DB.RAW.WATCHLIST w
+     ON LOWER(k.extracted_data:applicant_name::VARCHAR) ILIKE '%' || LOWER(w.ENTITY_NAME) || '%'
+     OR LOWER(k.extracted_data:associated_entities::VARCHAR) ILIKE '%' || LOWER(w.ENTITY_NAME) || '%';
+ 
+ Step 6: EDD Flagging with AI Reasoning
+ 
+   -- Use Cortex COMPLETE for AI-powered EDD risk assessment
+   CREATE OR REPLACE VIEW KYC_SUPERHERO_DB.ANALYTICS.EDD_ASSESSMENT AS
+   SELECT
+     x.file_name,
+     x.applicant_name,
+     x.known_risk_level,
+     x.watchlist_match,
+     x.watchlist_reason,
+     x.edd_required,
+     SNOWFLAKE.CORTEX.COMPLETE(
+       'claude-sonnet-4-6',
+       CONCAT(
+         'You are a KYC compliance officer. Assess the following applicant for Enhanced Due Diligence requirements. ',
+         'Provide a risk score (1-10), key risk factors, and recommended actions.\n\n',
+         'Applicant: ', x.applicant_name, '\n',
+         'Known Risk Level: ', COALESCE(x.known_risk_level, 'UNKNOWN'), '\n',
+         'Watchlist Match: ', x.watchlist_match::VARCHAR, '\n',
+         'Watchlist Reason: ', COALESCE(x.watchlist_reason, 'N/A'), '\n',
+         'Affiliation: ', COALESCE(x.AFFILIATION, 'Unknown'), '\n',
+         'Respond in JSON with keys: risk_score, risk_factors (array), recommended_actions (array), summary'
+       )
+     ) AS edd_assessment
+   FROM KYC_SUPERHERO_DB.CURATED.ENTITY_CROSSREF x
+   WHERE x.edd_required = TRUE;
+ 
+ Step 7: Automated Pipeline with Dynamic Tables (Optional Advanced Section)
+ 
+   -- Dynamic table that auto-refreshes when new documents arrive
+   CREATE DYNAMIC TABLE KYC_SUPERHERO_DB.CURATED.LIVE_EXTRACTIONS
+     TARGET_LAG = '5 minutes'
+     WAREHOUSE = KYC_WORKSHOP_WH
+   AS
+     SELECT
+       RELATIVE_PATH AS file_name,
+       AI_EXTRACT(
+         TO_FILE('@KYC_SUPERHERO_DB.DOCUMENTS.KYC_FORMS', RELATIVE_PATH),
+         {'applicant_name': 'Full name', 'source_of_funds': 'Source of funds'}
+       ) AS extracted_data,
+       CURRENT_TIMESTAMP() AS processed_at
+     FROM DIRECTORY(@KYC_SUPERHERO_DB.DOCUMENTS.KYC_FORMS);
+ 
+ Step 8: Workshop Dashboard Query
+ 
+   -- Final summary for the workshop "wow moment"
+   SELECT
+     applicant_name,
+     known_risk_level,
+     watchlist_match,
+     watchlist_reason,
+     edd_required,
+     edd_assessment:risk_score::INT AS risk_score,
+     edd_assessment:summary::VARCHAR AS ai_assessment
+   FROM KYC_SUPERHERO_DB.ANALYTICS.EDD_ASSESSMENT
+   ORDER BY edd_assessment:risk_score::INT DESC;
+ 
+ ────────────────────────────────────────
+ 
+ Workshop Flow (for participants)
+ 
+ ┌─────────────────────┬───────────────────────────────────┬────────────────────────────┬─────────────────┐
+ │ Section             │ What They Build                   │ Cortex Feature             │ Est. Complexity │
+ ├─────────────────────┼───────────────────────────────────┼────────────────────────────┼─────────────────┤
+ │ 1. Setup            │ Database, stages, Git integration │ Infrastructure             │ Simple SQL      │
+ ├─────────────────────┼───────────────────────────────────┼────────────────────────────┼─────────────────┤
+ │ 2. Ingest           │ Copy docs from Git repo to stages │ Git Integration            │ Simple SQL      │
+ ├─────────────────────┼───────────────────────────────────┼────────────────────────────┼─────────────────┤
+ │ 3. Reference Data   │ Create hero + watchlist tables    │ Standard SQL               │ Simple SQL      │
+ ├─────────────────────┼───────────────────────────────────┼────────────────────────────┼─────────────────┤
+ │ 4. Extract (Images) │ Process ID cards with vision AI   │ AI_COMPLETE multimodal     │ 1 query         │
+ ├─────────────────────┼───────────────────────────────────┼────────────────────────────┼─────────────────┤
+ │ 5. Extract (PDFs)   │ Process KYC forms                 │ AI_EXTRACT                 │ 1 query         │
+ ├─────────────────────┼───────────────────────────────────┼────────────────────────────┼─────────────────┤
+ │ 6. Cross-Reference  │ Match entities to known data      │ SQL JOINs + fuzzy matching │ Medium          │
+ ├─────────────────────┼───────────────────────────────────┼────────────────────────────┼─────────────────┤
+ │ 7. EDD Assessment   │ AI risk reasoning                 │ CORTEX.COMPLETE            │ 1 query         │
+ ├─────────────────────┼───────────────────────────────────┼────────────────────────────┼─────────────────┤
+ │ 8. Automate         │ Dynamic table pipeline            │ Dynamic Tables             │ Advanced        │
+ └─────────────────────┴───────────────────────────────────┴────────────────────────────┴─────────────────┘
+ 
+ ────────────────────────────────────────
+ 
+ Verification
+ 
+ • Confirm all 10 ID images and 10 KYC PDFs are accessible from stages
+ • Verify AI_EXTRACT returns structured JSON for each document
+ • Verify AI_COMPLETE (multimodal) can read superhero ID cards
+ • Confirm cross-reference joins produce matches
+ • Confirm EDD flags are raised for high-risk heroes (Hulk, Iron Man, etc.)
+ 
+ ────────────────────────────────────────
+ 
+ Critical Files to Create
+ 
+ 1. 01_setup.sql — Database, schemas, warehouse, Git integration, stages
+ 2. 02_reference_data.sql — Heroes table, watchlist table with INSERT statements
+ 3. 03_document_extraction.sql — AI_COMPLETE for images, AI_EXTRACT for PDFs
+ 4. 04_crossref_and_edd.sql — Entity cross-referencing views, EDD AI assessment
+ 5. 05_pipeline_automation.sql — Dynamic tables for automated refresh (advanced)
+ 
+ ────────────────────────────────────────
+ 
+ Key Design Decisions
+ 
+ • Using AI_EXTRACT over legacy Document AI: The new AI_EXTRACT function is GA, simpler to use (pure SQL, no model training), and perfect for a workshop where participants want instant results
+ • Using AI_COMPLETE multimodal for ID images: Vision models can read the ID card images directly — no OCR preprocessing needed
+ • Superhero theme: Makes compliance fun; heroes like Iron Man (arms dealer history) and Hulk (property destruction) naturally trigger EDD flags
+ • No Cortex Search needed for Use Case 1: Simple SQL JOINs with fuzzy matching are more workshop-friendly. Cortex Search could be a stretch goal or Use Case 2
+
+
+----------------------
+*** Prompt 2: ***
+I want to use a maker/checker architecture. What you have is great for the maker part. Now plan how to add the checker part.
+I am thinking we need to check Steps 4, 5, 6, 7
+
+*** Response 2 ***
+Good — I can see that AI_COMPLETE supports structured output with JSON schemas, which is key for the checker to validate against expected schemas. Now I have all the information I need to 
+  design the maker/checker architecture. The key insight is:
+  
+  • Maker: Extracts data from documents (what we already have)
+  • Checker: Uses a different AI call to independently validate/verify the maker's output — checking for completeness, accuracy, consistency, and flagging discrepancies
+  
+  This maps perfectly to real-world KYC operations where dual-review is mandatory for regulatory compliance.
+
+Proposed plan:
+───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ Maker/Checker Architecture — Checker Layer for Steps 4-7
+ 
+ Context
+ 
+ The existing plan has a Maker layer that extracts and processes data. The Checker layer adds independent AI-driven validation at each step, mirroring real-world KYC compliance where dual-review (4-eyes principle) is mandatory. Each checker uses a separate AI call with a different prompt perspective to catch errors, hallucinations, or incomplete extractions.
+ 
+ This is highly relevant to CPR — they already operate maker/checker processes for regulatory compliance. Showing this can be automated with AI will resonate strongly.
+ 
+ ────────────────────────────────────────
+ 
+ Checker Architecture
+ 
+   MAKER (Extract)                    CHECKER (Validate)
+   ─────────────────                  ──────────────────
+   Step 4: AI_COMPLETE → ID data  →   Step 4C: Re-examine image, compare to maker output
+   Step 5: AI_EXTRACT → KYC data  →   Step 5C: Cross-validate fields, check completeness
+   Step 6: SQL JOINs → Entity XREF →  Step 6C: AI validates match quality, flags false +/-
+   Step 7: AI EDD assessment      →   Step 7C: Independent AI review of EDD decision
+ 
+ Each checker produces:
+ 
+ • check_status: PASS / FAIL / NEEDS_REVIEW
+ • confidence_score: 0-100
+ • discrepancies: array of issues found
+ • checker_notes: free-text reasoning
+ 
+ ────────────────────────────────────────
+ 
+ Implementation Steps
+ 
+ Step 4C: Checker for ID Card Extraction
+ 
+ The checker independently re-reads the same image and compares its extraction against the maker's output, looking for discrepancies.
+ 
+   -- Checker: Independent validation of ID card extractions
+   CREATE OR REPLACE TABLE KYC_SUPERHERO_DB.CURATED.CHECKED_IDS AS
+   SELECT
+     m.file_name,
+     m.extracted_data AS maker_output,
+     AI_COMPLETE(
+       'claude-sonnet-4-6',
+       PROMPT(
+         'You are a KYC compliance checker performing an independent review.
+          
+          A colleague has extracted the following data from the attached ID card:
+          {0}
+          
+          Your task:
+          1. Re-read the ID card image independently
+          2. Compare your reading against the colleague''s extraction
+          3. Flag ANY discrepancies (misspellings, wrong dates, missing fields, misread values)
+          4. Check the document appears genuine (no obvious inconsistencies in the card itself)
+          5. Verify all mandatory fields are present: full_name, id_number, date_of_birth, expiry_date
+          
+          Return your validation result.',
+         m.extracted_data::VARCHAR
+       ),
+       TO_FILE('@KYC_SUPERHERO_DB.DOCUMENTS.ID_DOCUMENTS', m.file_name),
+       {},
+       {
+         'type': 'json',
+         'schema': {
+           'type': 'object',
+           'properties': {
+             'check_status': {'type': 'string', 'enum': ['PASS', 'FAIL', 'NEEDS_REVIEW']},
+             'confidence_score': {'type': 'integer'},
+             'fields_verified': {'type': 'integer'},
+             'fields_with_discrepancies': {'type': 'integer'},
+             'discrepancies': {
+               'type': 'array',
+               'items': {
+                 'type': 'object',
+                 'properties': {
+                   'field': {'type': 'string'},
+                   'maker_value': {'type': 'string'},
+                   'checker_value': {'type': 'string'},
+                   'severity': {'type': 'string', 'enum': ['LOW', 'MEDIUM', 'HIGH']}
+                 }
+               }
+             },
+             'document_authenticity': {'type': 'string', 'enum': ['APPEARS_GENUINE', 'SUSPICIOUS', 'LIKELY_FRAUDULENT']},
+             'mandatory_fields_complete': {'type': 'boolean'},
+             'checker_notes': {'type': 'string'}
+           },
+           'required': ['check_status', 'confidence_score', 'discrepancies', 'mandatory_fields_complete', 'document_authenticity']
+         }
+       }
+     ) AS checker_output,
+     CURRENT_TIMESTAMP() AS checked_at
+   FROM KYC_SUPERHERO_DB.CURATED.EXTRACTED_IDS m;
+ 
+ Step 5C: Checker for KYC Form Extraction
+ 
+ The checker validates the KYC form extraction for completeness, consistency, and regulatory compliance.
+ 
+   -- Checker: Validate KYC form extractions
+   CREATE OR REPLACE TABLE KYC_SUPERHERO_DB.CURATED.CHECKED_KYC AS
+   SELECT
+     m.file_name,
+     m.extracted_data AS maker_output,
+     AI_EXTRACT(
+       TO_FILE('@KYC_SUPERHERO_DB.DOCUMENTS.KYC_FORMS', m.file_name),
+       {
+         'applicant_name': 'Full name of the applicant exactly as written',
+         'source_of_funds': 'Declared source of funds',
+         'signature_present': 'Is the form signed (yes/no)?'
+       }
+     ) AS checker_independent_extraction,
+     AI_COMPLETE(
+       'claude-sonnet-4-6',
+       CONCAT(
+         'You are a KYC compliance checker. Compare these two extractions from the same KYC form:\n\n',
+         'MAKER EXTRACTION:\n', m.extracted_data::VARCHAR, '\n\n',
+         'CHECKER SPOT-CHECK EXTRACTION:\n', 
+         AI_EXTRACT(
+           TO_FILE('@KYC_SUPERHERO_DB.DOCUMENTS.KYC_FORMS', m.file_name),
+           {'applicant_name': 'Full name', 'source_of_funds': 'Source of funds', 'occupation': 'Occupation'}
+         )::VARCHAR, '\n\n',
+         'Validate:\n',
+         '1. Do the spot-check fields match the maker extraction?\n',
+         '2. Are all required KYC fields populated (name, DOB, address, nationality, source of funds, occupation)?\n',
+         '3. Are there any logical inconsistencies (e.g. source of funds doesn''t match occupation)?\n',
+         '4. Is the form fully completed or are there concerning gaps?\n',
+         'Return your assessment.'
+       ),
+       {},
+       {
+         'type': 'json',
+         'schema': {
+           'type': 'object',
+           'properties': {
+             'check_status': {'type': 'string', 'enum': ['PASS', 'FAIL', 'NEEDS_REVIEW']},
+             'confidence_score': {'type': 'integer'},
+             'completeness_pct': {'type': 'integer'},
+             'fields_missing': {'type': 'array', 'items': {'type': 'string'}},
+             'logical_inconsistencies': {'type': 'array', 'items': {'type': 'string'}},
+             'spot_check_matches': {'type': 'boolean'},
+             'discrepancies': {
+               'type': 'array',
+               'items': {
+                 'type': 'object',
+                 'properties': {
+                   'field': {'type': 'string'},
+                   'issue': {'type': 'string'},
+                   'severity': {'type': 'string', 'enum': ['LOW', 'MEDIUM', 'HIGH']}
+                 }
+               }
+             },
+             'checker_notes': {'type': 'string'}
+           },
+           'required': ['check_status', 'confidence_score', 'completeness_pct', 'spot_check_matches', 'discrepancies']
+         }
+       }
+     ) AS checker_output,
+     CURRENT_TIMESTAMP() AS checked_at
+   FROM KYC_SUPERHERO_DB.CURATED.EXTRACTED_KYC m;
+ 
+ Step 6C: Checker for Entity Cross-Reference
+ 
+ The checker validates that entity matches are genuine (not false positives) and that no matches were missed (false negatives).
+ 
+   -- Checker: Validate entity cross-reference quality
+   CREATE OR REPLACE VIEW KYC_SUPERHERO_DB.CURATED.CHECKED_CROSSREF AS
+   SELECT
+     x.*,
+     SNOWFLAKE.CORTEX.COMPLETE(
+       'claude-sonnet-4-6',
+       CONCAT(
+         'You are a KYC entity-matching checker. Validate this cross-reference result:\n\n',
+         'APPLICANT NAME (from KYC form): "', x.applicant_name, '"\n',
+         'MATCHED TO HERO: "', COALESCE(x.HERO_NAME, 'NO MATCH'), '" (Real name: "', COALESCE(x.REAL_NAME, 'N/A'), '")\n',
+         'WATCHLIST MATCH: ', x.watchlist_match::VARCHAR, '\n',
+         'WATCHLIST ENTITY: "', COALESCE(x.watchlist_reason, 'N/A'), '"\n',
+         'EDD REQUIRED (maker decision): ', x.edd_required::VARCHAR, '\n\n',
+         'Validate:\n',
+         '1. Is the hero match correct or a false positive? (Consider name variations, aliases)\n',
+         '2. Is the watchlist match genuine or coincidental?\n',
+         '3. Could there be missed matches (false negatives) based on known aliases?\n',
+         '4. Is the EDD decision appropriate given the evidence?\n',
+         '5. Rate your confidence in the overall match quality.\n\n',
+         'Known aliases and associates to check against:\n',
+         '- Tony Stark = Iron Man = Merchant of Death (Stark Industries on sanctions list)\n',
+         '- Bruce Banner = Hulk (property destruction watchlist)\n',
+         '- Natasha Romanoff = Black Widow = Natalia Romanova\n',
+         '- Thor Odinson (foreign PEP - Asgardian royalty)\n',
+         'Return your validation.'
+       ),
+       {'response_format': {'type': 'json', 'schema': {
+         'type': 'object',
+         'properties': {
+           'check_status': {'type': 'string', 'enum': ['PASS', 'FAIL', 'NEEDS_REVIEW']},
+           'confidence_score': {'type': 'integer'},
+           'hero_match_valid': {'type': 'boolean'},
+           'hero_match_reasoning': {'type': 'string'},
+           'watchlist_match_valid': {'type': 'boolean'},
+           'potential_missed_matches': {'type': 'array', 'items': {'type': 'string'}},
+           'edd_decision_appropriate': {'type': 'boolean'},
+           'recommended_edd_override': {'type': 'string', 'enum': ['KEEP_AS_IS', 'UPGRADE_TO_EDD', 'DOWNGRADE_FROM_EDD']},
+           'checker_notes': {'type': 'string'}
+         },
+         'required': ['check_status', 'confidence_score', 'hero_match_valid', 'watchlist_match_valid', 'edd_decision_appropriate']
+       }}}
+     ) AS checker_output
+   FROM KYC_SUPERHERO_DB.CURATED.ENTITY_CROSSREF x;
+ 
+ Step 7C: Checker for EDD Assessment
+ 
+ An independent "senior compliance officer" AI reviews the maker's EDD risk assessment with a different perspective.
+ 
+   -- Checker: Independent senior review of EDD assessments
+   CREATE OR REPLACE VIEW KYC_SUPERHERO_DB.ANALYTICS.CHECKED_EDD AS
+   SELECT
+     e.*,
+     SNOWFLAKE.CORTEX.COMPLETE(
+       'claude-sonnet-4-6',
+       CONCAT(
+         'You are a SENIOR compliance officer performing a second-line review of an EDD assessment.\n',
+         'Your role is to challenge the initial assessment, look for gaps, and ensure regulatory standards are met.\n\n',
+         'APPLICANT: ', e.applicant_name, '\n',
+         'INITIAL EDD ASSESSMENT:\n', e.edd_assessment::VARCHAR, '\n\n',
+         'CONTEXT:\n',
+         '- Known risk level: ', COALESCE(e.known_risk_level, 'UNKNOWN'), '\n',
+         '- Watchlist match: ', e.watchlist_match::VARCHAR, '\n',
+         '- Watchlist reason: ', COALESCE(e.watchlist_reason, 'N/A'), '\n\n',
+         'As senior reviewer, evaluate:\n',
+         '1. Is the risk score appropriate? (Challenge if too lenient OR too harsh)\n',
+         '2. Are all relevant risk factors identified? Any missing?\n',
+         '3. Are the recommended actions proportionate and complete?\n',
+         '4. Does this meet FCA/PRA regulatory expectations for EDD?\n',
+         '5. Would you approve, reject, or escalate this assessment?\n',
+         '6. Provide your own independent risk score for comparison.\n',
+         'Return your senior review.'
+       ),
+       {'response_format': {'type': 'json', 'schema': {
+         'type': 'object',
+         'properties': {
+           'check_status': {'type': 'string', 'enum': ['APPROVED', 'REJECTED', 'ESCALATE']},
+           'senior_risk_score': {'type': 'integer'},
+           'maker_risk_score_appropriate': {'type': 'boolean'},
+           'score_variance': {'type': 'integer'},
+           'missing_risk_factors': {'type': 'array', 'items': {'type': 'string'}},
+           'additional_actions_required': {'type': 'array', 'items': {'type': 'string'}},
+           'regulatory_compliance': {'type': 'string', 'enum': ['COMPLIANT', 'GAPS_IDENTIFIED', 'NON_COMPLIANT']},
+           'escalation_reason': {'type': 'string'},
+           'final_recommendation': {'type': 'string'},
+           'checker_notes': {'type': 'string'}
+         },
+         'required': ['check_status', 'senior_risk_score', 'maker_risk_score_appropriate', 'regulatory_compliance', 'final_recommendation']
+       }}}
+     ) AS senior_review
+   FROM KYC_SUPERHERO_DB.ANALYTICS.EDD_ASSESSMENT e;
+ 
+ Step 8: Final Maker/Checker Dashboard
+ 
+   -- Combined dashboard showing maker + checker results with discrepancy flags
+   CREATE OR REPLACE VIEW KYC_SUPERHERO_DB.ANALYTICS.MAKER_CHECKER_DASHBOARD AS
+   SELECT
+     'ID Extraction' AS stage,
+     c.file_name,
+     c.checker_output:check_status::VARCHAR AS check_status,
+     c.checker_output:confidence_score::INT AS confidence,
+     c.checker_output:document_authenticity::VARCHAR AS doc_authenticity,
+     ARRAY_SIZE(c.checker_output:discrepancies) AS discrepancy_count,
+     c.checker_output:checker_notes::VARCHAR AS notes
+   FROM KYC_SUPERHERO_DB.CURATED.CHECKED_IDS c
+   
+   UNION ALL
+   
+   SELECT
+     'KYC Form' AS stage,
+     c.file_name,
+     c.checker_output:check_status::VARCHAR AS check_status,
+     c.checker_output:confidence_score::INT AS confidence,
+     NULL AS doc_authenticity,
+     ARRAY_SIZE(c.checker_output:discrepancies) AS discrepancy_count,
+     c.checker_output:checker_notes::VARCHAR AS notes
+   FROM KYC_SUPERHERO_DB.CURATED.CHECKED_KYC c;
+   
+   -- Summary statistics
+   SELECT
+     stage,
+     COUNT(*) AS total_documents,
+     SUM(CASE WHEN check_status = 'PASS' THEN 1 ELSE 0 END) AS passed,
+     SUM(CASE WHEN check_status = 'FAIL' THEN 1 ELSE 0 END) AS failed,
+     SUM(CASE WHEN check_status = 'NEEDS_REVIEW' THEN 1 ELSE 0 END) AS needs_review,
+     AVG(confidence) AS avg_confidence,
+     SUM(discrepancy_count) AS total_discrepancies
+   FROM KYC_SUPERHERO_DB.ANALYTICS.MAKER_CHECKER_DASHBOARD
+   GROUP BY stage;
+ 
+ ────────────────────────────────────────
+ 
+ Workshop Narrative
+ 
+ ┌──────┬─────────────────────────┬──────────────────────────────────────────────┬──────────────────────────────────────────┐
+ │ Step │ Maker (What)            │ Checker (Why)                                │ CPR Relevance                            │
+ ├──────┼─────────────────────────┼──────────────────────────────────────────────┼──────────────────────────────────────────┤
+ │ 4C   │ Extract ID data         │ "Did we read this correctly?"                │ Document verification - dual review      │
+ ├──────┼─────────────────────────┼──────────────────────────────────────────────┼──────────────────────────────────────────┤
+ │ 5C   │ Extract KYC form        │ "Is the form complete & consistent?"         │ Application quality control              │
+ ├──────┼─────────────────────────┼──────────────────────────────────────────────┼──────────────────────────────────────────┤
+ │ 6C   │ Match to known entities │ "Is this match genuine or a false positive?" │ Name screening validation                │
+ ├──────┼─────────────────────────┼──────────────────────────────────────────────┼──────────────────────────────────────────┤
+ │ 7C   │ Assess EDD risk         │ "Would a senior officer approve this?"       │ Second-line oversight / 4-eyes principle │
+ └──────┴─────────────────────────┴──────────────────────────────────────────────┴──────────────────────────────────────────┘
+ 
+ ────────────────────────────────────────
+ 
+ Key Design Principles
+ 
+ 1. Different perspective: Each checker uses a different "persona" and prompt angle from the maker — not just repeating the same extraction
+ 2. Structured output schemas: Every checker returns a consistent JSON structure enabling automated escalation
+ 3. Graduated severity: PASS/FAIL/NEEDS_REVIEW (or APPROVED/REJECTED/ESCALATE for EDD) maps to real operational workflows
+ 4. Audit trail: Every check is timestamped and stored, supporting regulatory requirements
+ 5. Score variance detection: Step 7C compares maker vs checker risk scores — large variance triggers escalation
+ 
+ ────────────────────────────────────────
+ 
+ Files to Create/Modify
+ 
+ 1. 03_document_extraction.sql → Already has maker logic (Steps 4 & 5)
+ 2. 03b_checker_extraction.sql (new) — Checker for Steps 4C & 5C
+ 3. 04_crossref_and_edd.sql → Already has maker logic (Steps 6 & 7)
+ 4. 04b_checker_review.sql (new) — Checker for Steps 6C & 7C
+ 5. 05_maker_checker_dashboard.sql (new) — Combined dashboard and summary stats
+ 
+ ────────────────────────────────────────
+ 
+ Verification
+ 
+ • Run checker on all 10 ID cards → should get mix of PASS/NEEDS_REVIEW
+ • Run checker on all 10 KYC forms → should flag missing fields, logical issues
+ • Entity match checker should correctly identify false positives where names partially match but aren't the same hero
+ • EDD senior review should catch cases where maker was too lenient (e.g. didn't flag a PEP)
+ • Dashboard should summarize pass rates and highlight items needing human attention
+
+
+*** EXIT_PLAN_MODE  Yes ***
+
+* Let me create the tasks and start implementing.
+
+* Now let me create all the SQL files. I'll start with the first few.
+
+✓  WRITE  /Users/nwindridge/demos/MS/CPR/AI_Workshop/01_setup.sql +118
+
+✓  WRITE  /Users/nwindridge/demos/MS/CPR/AI_Workshop/02_reference_data.sql +245
+
+✓  WRITE  /Users/nwindridge/demos/MS/CPR/AI_Workshop/03_document_extraction.sql +149
+
+✓  WRITE  /Users/nwindridge/demos/MS/CPR/AI_Workshop/03b_checker_extraction.sql +290
+
+✓  WRITE  /Users/nwindridge/demos/MS/CPR/AI_Workshop/04_crossref_and_edd.sql +181
+
+✓  WRITE  /Users/nwindridge/demos/MS/CPR/AI_Workshop/04b_checker_review.sql +220
+
+✓  WRITE  /Users/nwindridge/demos/MS/CPR/AI_Workshop/05_maker_checker_dashboard.sql +245
+
+* Now let me verify the SQL compiles correctly. I'll test key statements from each file.
