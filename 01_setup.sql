@@ -12,15 +12,9 @@
 -- ============================================================================
 -- 1.1 ROLE & WAREHOUSE
 -- ============================================================================
+-- Prerequisites: Run 00_demo_environment.sql first (as ACCOUNTADMIN)
 
-USE ROLE ACCOUNTADMIN;
-
-CREATE OR REPLACE WAREHOUSE KYC_WORKSHOP_WH
-  WAREHOUSE_SIZE = 'MEDIUM'
-  AUTO_SUSPEND = 120
-  AUTO_RESUME = TRUE
-  COMMENT = 'Warehouse for KYC Superhero AI Workshop';
-
+USE ROLE KYC_WORKSHOP_ROLE;
 USE WAREHOUSE KYC_WORKSHOP_WH;
 
 -- ============================================================================
@@ -52,10 +46,8 @@ CREATE OR REPLACE SCHEMA KYC_SUPERHERO_DB.ANALYTICS
 -- The superhero documents (ID cards + KYC forms) are hosted on GitHub.
 -- We use Snowflake's Git integration to bring them into a repository stage.
 
-CREATE OR REPLACE API INTEGRATION kyc_git_integration
-  API_PROVIDER = git_https_api
-  API_ALLOWED_PREFIXES = ('https://github.com/jumoral/snowflake_ai_innovation_day')
-  ENABLED = TRUE;
+-- API Integration created in 00_demo_environment.sql (requires ACCOUNTADMIN)
+-- Here we just create the Git repository using that integration.
 
 CREATE OR REPLACE GIT REPOSITORY KYC_SUPERHERO_DB.DOCUMENTS.SUPERHERO_REPO
   API_INTEGRATION = kyc_git_integration
