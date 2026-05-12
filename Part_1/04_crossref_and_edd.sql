@@ -90,12 +90,25 @@ LEFT JOIN KYC_SUPERHERO_DB.RAW.HEROES h
   OR LOWER(k.extracted_data:response:applicant_name::VARCHAR) ILIKE '%' || LOWER(h.HERO_NAME) || '%'
   OR LOWER(h.ALIAS) ILIKE '%' || LOWER(k.extracted_data:response:applicant_name::VARCHAR) || '%'
 
--- Match against watchlist (check applicant name AND associated entities)
+-- Match against watchlist (check applicant name, associated entities, AND watchlist aliases)
+-- Also checks if the matched hero's alias is on the watchlist
 LEFT JOIN KYC_SUPERHERO_DB.RAW.WATCHLIST w
   ON (
+    -- Direct name match against watchlist entity name
     LOWER(k.extracted_data:response:applicant_name::VARCHAR) ILIKE '%' || LOWER(w.ENTITY_NAME) || '%'
     OR LOWER(w.ENTITY_NAME) ILIKE '%' || LOWER(k.extracted_data:response:applicant_name::VARCHAR) || '%'
+    -- Applicant's declared associated entities match watchlist entity
     OR LOWER(COALESCE(k.extracted_data:response:associated_entities::VARCHAR, '')) ILIKE '%' || LOWER(w.ENTITY_NAME) || '%'
+    -- Applicant name matches a watchlist alias (MATCH_ALIASES array)
+    OR ARRAY_CONTAINS(LOWER(k.extracted_data:response:applicant_name::VARCHAR)::VARIANT, TRANSFORM(w.MATCH_ALIASES, a -> LOWER(a)))
+    -- Matched hero name/alias matches watchlist entity or watchlist aliases
+    OR (h.HERO_NAME IS NOT NULL AND (
+      LOWER(h.HERO_NAME) ILIKE '%' || LOWER(w.ENTITY_NAME) || '%'
+      OR LOWER(w.ENTITY_NAME) ILIKE '%' || LOWER(h.HERO_NAME) || '%'
+      OR LOWER(COALESCE(h.ALIAS, '')) ILIKE '%' || LOWER(w.ENTITY_NAME) || '%'
+      OR ARRAY_CONTAINS(LOWER(h.HERO_NAME)::VARIANT, TRANSFORM(w.MATCH_ALIASES, a -> LOWER(a)))
+      OR ARRAY_CONTAINS(LOWER(COALESCE(h.ALIAS, ''))::VARIANT, TRANSFORM(w.MATCH_ALIASES, a -> LOWER(a)))
+    ))
   )
   AND w.ACTIVE = TRUE;
 

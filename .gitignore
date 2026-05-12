@@ -1,2 +1,5 @@
+.venv/
+.DS_Store
 .cortex/
 .vscode/
+Part_1/id_cards/headshots/
