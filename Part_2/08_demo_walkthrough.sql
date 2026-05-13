@@ -8,7 +8,7 @@
       → Navigate to AI & ML > Cortex Agents > COMPLIANCE_AGENT
       → Type the suggested questions directly into the chat interface
     
-    Option B: Use the SQL function SNOWFLAKE.CORTEX.AGENT() shown below
+    Option B: Use the SQL function SNOWFLAKE.CORTEX.DATA_AGENT_RUN() shown below
       → Run each query in a Snowsight worksheet
   
   Prerequisites: Run scripts 01-07 first.
@@ -33,9 +33,9 @@ USE WAREHOUSE CPR_WORKSHOP_WH;
 
 -- Q: "How many parties do we have by jurisdiction?"
 -- Try in Snowsight Agent UI, or run:
-SELECT SNOWFLAKE.CORTEX.AGENT(
+SELECT SNOWFLAKE.CORTEX.DATA_AGENT_RUN(
   'GENERIC_DB.ANALYTICS.COMPLIANCE_AGENT',
-  'How many parties do we have by jurisdiction?'
+  $${ "messages": [{"role": "user", "content": [{"type": "text", "text": "How many parties do we have by jurisdiction?"}]}], "stream": false }$$
 );
 
 -- Verify: the agent should produce something equivalent to:
@@ -49,33 +49,33 @@ ORDER BY PARTY_COUNT DESC;
 -- ............................................................................
 
 -- Q: "Show me all HIGH and CRITICAL risk parties"
-SELECT SNOWFLAKE.CORTEX.AGENT(
+SELECT SNOWFLAKE.CORTEX.DATA_AGENT_RUN(
   'GENERIC_DB.ANALYTICS.COMPLIANCE_AGENT',
-  'Show me all HIGH and CRITICAL risk parties'
+  $${"messages": [{"role": "user", "content": [{"type": "text", "text": "Show me all HIGH and CRITICAL risk parties"}]}]}$$
 );
 
 -- Verify:
-SELECT rr.PARTY_KEY, pp.PARTY_NAME, rr.RISK_RATING, rr.LAST_REVIEW_DATE
+SELECT rr.PARTY_KEY, pp.PARTY_NAME, rr.CURRENT_RATING, rr.RATING_DATE
 FROM GENERIC_DB.COMPLIANCE.RISK_RATINGS rr
 JOIN GENERIC_DB.PARTY_MART.PARTY_PROFILE_CURRENT pp
   ON rr.PARTY_KEY = pp.PARTY_PROFILE_ID
-WHERE rr.RISK_RATING IN ('HIGH', 'CRITICAL')
-ORDER BY rr.RISK_RATING, pp.PARTY_NAME;
+WHERE rr.CURRENT_RATING IN ('HIGH', 'CRITICAL')
+ORDER BY rr.CURRENT_RATING, pp.PARTY_NAME;
 
 -- ............................................................................
 
 -- Q: "Which parties in Singapore have more than 3 contacts?"
-SELECT SNOWFLAKE.CORTEX.AGENT(
+SELECT SNOWFLAKE.CORTEX.DATA_AGENT_RUN(
   'GENERIC_DB.ANALYTICS.COMPLIANCE_AGENT',
-  'Which parties in Singapore have more than 3 contacts?'
+  $${"messages": [{"role": "user", "content": [{"type": "text", "text": "Which parties in Singapore have more than 3 contacts?"}]}]}$$
 );
 
 -- ............................................................................
 
 -- Q: "What is the screening hit rate this quarter?"
-SELECT SNOWFLAKE.CORTEX.AGENT(
+SELECT SNOWFLAKE.CORTEX.DATA_AGENT_RUN(
   'GENERIC_DB.ANALYTICS.COMPLIANCE_AGENT',
-  'What is the screening hit rate this quarter?'
+  $${"messages": [{"role": "user", "content": [{"type": "text", "text": "What is the screening hit rate this quarter?"}]}]}$$
 );
 
 
@@ -88,9 +88,9 @@ SELECT SNOWFLAKE.CORTEX.AGENT(
 
 -- Q: "Run screening on PTY-000003"
 -- The agent calls SP_RUN_SCREENING and returns the match summary.
-SELECT SNOWFLAKE.CORTEX.AGENT(
+SELECT SNOWFLAKE.CORTEX.DATA_AGENT_RUN(
   'GENERIC_DB.ANALYTICS.COMPLIANCE_AGENT',
-  'Run screening on PTY-000003'
+  $${"messages": [{"role": "user", "content": [{"type": "text", "text": "Run screening on PTY-000003"}]}]}$$
 );
 
 -- Verify: check screening results were logged
@@ -103,9 +103,9 @@ LIMIT 5;
 
 -- Q: "Show me all overdue PDD reviews"
 -- The agent calls SP_GET_PDD_OVERDUE to find parties past their review date.
-SELECT SNOWFLAKE.CORTEX.AGENT(
+SELECT SNOWFLAKE.CORTEX.DATA_AGENT_RUN(
   'GENERIC_DB.ANALYTICS.COMPLIANCE_AGENT',
-  'Show me all overdue PDD reviews'
+  $${"messages": [{"role": "user", "content": [{"type": "text", "text": "Show me all overdue PDD reviews"}]}]}$$
 );
 
 -- Verify:
@@ -118,30 +118,30 @@ ORDER BY NEXT_REVIEW_DATE;
 
 -- Q: "Initiate an EDD review for PTY-000015 - trigger: complex corporate structure"
 -- The agent calls SP_INITIATE_EDD and returns a new case ID.
-SELECT SNOWFLAKE.CORTEX.AGENT(
+SELECT SNOWFLAKE.CORTEX.DATA_AGENT_RUN(
   'GENERIC_DB.ANALYTICS.COMPLIANCE_AGENT',
-  'Initiate an EDD review for PTY-000015 - trigger: complex corporate structure'
+  $${"messages": [{"role": "user", "content": [{"type": "text", "text": "Initiate an EDD review for PTY-000015 - trigger: complex corporate structure"}]}]}$$
 );
 
 -- Verify: check the new EDD review was created
 SELECT * FROM GENERIC_DB.COMPLIANCE.EDD_REVIEWS
 WHERE PARTY_KEY = 'PTY-000015'
-ORDER BY CREATED_DATE DESC
+ORDER BY INITIATED_AT DESC
 LIMIT 1;
 
 -- ............................................................................
 
 -- Q: "Update the risk rating for PTY-000042 to HIGH because of new adverse media"
 -- The agent calls SP_UPDATE_RISK_RATING with full audit trail.
-SELECT SNOWFLAKE.CORTEX.AGENT(
+SELECT SNOWFLAKE.CORTEX.DATA_AGENT_RUN(
   'GENERIC_DB.ANALYTICS.COMPLIANCE_AGENT',
-  'Update the risk rating for PTY-000042 to HIGH because of new adverse media'
+  $${"messages": [{"role": "user", "content": [{"type": "text", "text": "Update the risk rating for PTY-000042 to HIGH because of new adverse media"}]}]}$$
 );
 
 -- Verify: check the audit log
 SELECT * FROM GENERIC_DB.COMPLIANCE.AUDIT_LOG
 WHERE PARTY_KEY = 'PTY-000042'
-ORDER BY ACTION_DATE DESC
+ORDER BY ACTION_TS DESC
 LIMIT 5;
 
 
@@ -153,25 +153,25 @@ LIMIT 5;
 -- ============================================================================
 
 -- Q: "What compliance notes exist about unusual transaction patterns?"
-SELECT SNOWFLAKE.CORTEX.AGENT(
+SELECT SNOWFLAKE.CORTEX.DATA_AGENT_RUN(
   'GENERIC_DB.ANALYTICS.COMPLIANCE_AGENT',
-  'What compliance notes exist about unusual transaction patterns?'
+  $${"messages": [{"role": "user", "content": [{"type": "text", "text": "What compliance notes exist about unusual transaction patterns?"}]}]}$$
 );
 
 -- ............................................................................
 
 -- Q: "Find any SAR summaries related to parties in the Cayman Islands"
-SELECT SNOWFLAKE.CORTEX.AGENT(
+SELECT SNOWFLAKE.CORTEX.DATA_AGENT_RUN(
   'GENERIC_DB.ANALYTICS.COMPLIANCE_AGENT',
-  'Find any SAR summaries related to parties in the Cayman Islands'
+  $${"messages": [{"role": "user", "content": [{"type": "text", "text": "Find any SAR summaries related to parties in the Cayman Islands"}]}]}$$
 );
 
 -- ............................................................................
 
 -- Q: "What did the last site visit report say about Orion Holdings?"
-SELECT SNOWFLAKE.CORTEX.AGENT(
+SELECT SNOWFLAKE.CORTEX.DATA_AGENT_RUN(
   'GENERIC_DB.ANALYTICS.COMPLIANCE_AGENT',
-  'What did the last site visit report say about Orion Holdings?'
+  $${"messages": [{"role": "user", "content": [{"type": "text", "text": "What did the last site visit report say about Orion Holdings?"}]}]}$$
 );
 
 
@@ -185,27 +185,27 @@ SELECT SNOWFLAKE.CORTEX.AGENT(
 
 -- Q: "Give me the full picture on PTY-000007 including any compliance notes"
 -- Expected: Agent calls party_360 (SP) + search_compliance_notes (Search)
-SELECT SNOWFLAKE.CORTEX.AGENT(
+SELECT SNOWFLAKE.CORTEX.DATA_AGENT_RUN(
   'GENERIC_DB.ANALYTICS.COMPLIANCE_AGENT',
-  'Give me the full picture on PTY-000007 including any compliance notes'
+  $${"messages": [{"role": "user", "content": [{"type": "text", "text": "Give me the full picture on PTY-000007 including any compliance notes"}]}]}$$
 );
 
 -- ............................................................................
 
 -- Q: "Which high-risk parties have overdue reviews AND screening hits?"
 -- Expected: Agent queries COMPLIANCE_SV (Analyst) + possibly get_pdd_overdue (SP)
-SELECT SNOWFLAKE.CORTEX.AGENT(
+SELECT SNOWFLAKE.CORTEX.DATA_AGENT_RUN(
   'GENERIC_DB.ANALYTICS.COMPLIANCE_AGENT',
-  'Which high-risk parties have overdue reviews AND screening hits?'
+  $${"messages": [{"role": "user", "content": [{"type": "text", "text": "Which high-risk parties have overdue reviews AND screening hits?"}]}]}$$
 );
 
 -- ............................................................................
 
 -- Q: "Run screening on all parties that are overdue for PDD"
 -- Expected: Agent calls get_pdd_overdue first, then run_screening for each
-SELECT SNOWFLAKE.CORTEX.AGENT(
+SELECT SNOWFLAKE.CORTEX.DATA_AGENT_RUN(
   'GENERIC_DB.ANALYTICS.COMPLIANCE_AGENT',
-  'Run screening on all parties that are overdue for PDD'
+  $${"messages": [{"role": "user", "content": [{"type": "text", "text": "Run screening on all parties that are overdue for PDD"}]}]}$$
 );
 
 
@@ -223,37 +223,37 @@ SELECT SNOWFLAKE.CORTEX.AGENT(
 
 -- Step 1: Identify overdue reviews
 -- "Show me parties overdue for periodic review"
-SELECT SNOWFLAKE.CORTEX.AGENT(
+SELECT SNOWFLAKE.CORTEX.DATA_AGENT_RUN(
   'GENERIC_DB.ANALYTICS.COMPLIANCE_AGENT',
-  'Show me parties overdue for periodic review'
+  $${"messages": [{"role": "user", "content": [{"type": "text", "text": "Show me parties overdue for periodic review"}]}]}$$
 );
 
 -- Step 2: Run screening on a flagged party (replace PTY-XXXXXX with a result from Step 1)
 -- "Run screening on PTY-XXXXXX"
-SELECT SNOWFLAKE.CORTEX.AGENT(
+SELECT SNOWFLAKE.CORTEX.DATA_AGENT_RUN(
   'GENERIC_DB.ANALYTICS.COMPLIANCE_AGENT',
-  'Run screening on PTY-000010'
+  $${"messages": [{"role": "user", "content": [{"type": "text", "text": "Run screening on PTY-000010"}]}]}$$
 );
 
 -- Step 3: Check risk and compliance notes
 -- "What is the current risk rating and any compliance notes for PTY-000010?"
-SELECT SNOWFLAKE.CORTEX.AGENT(
+SELECT SNOWFLAKE.CORTEX.DATA_AGENT_RUN(
   'GENERIC_DB.ANALYTICS.COMPLIANCE_AGENT',
-  'What is the current risk rating and any compliance notes for PTY-000010?'
+  $${"messages": [{"role": "user", "content": [{"type": "text", "text": "What is the current risk rating and any compliance notes for PTY-000010?"}]}]}$$
 );
 
 -- Step 4: Initiate EDD if warranted
 -- "Initiate an EDD review for PTY-000010 - trigger: overdue PDD with screening hit"
-SELECT SNOWFLAKE.CORTEX.AGENT(
+SELECT SNOWFLAKE.CORTEX.DATA_AGENT_RUN(
   'GENERIC_DB.ANALYTICS.COMPLIANCE_AGENT',
-  'Initiate an EDD review for PTY-000010 - trigger: overdue PDD with screening hit'
+  $${"messages": [{"role": "user", "content": [{"type": "text", "text": "Initiate an EDD review for PTY-000010 - trigger: overdue PDD with screening hit"}]}]}$$
 );
 
 -- Step 5: Update risk rating based on findings
 -- "Update the risk rating for PTY-000010 to HIGH based on the screening results"
-SELECT SNOWFLAKE.CORTEX.AGENT(
+SELECT SNOWFLAKE.CORTEX.DATA_AGENT_RUN(
   'GENERIC_DB.ANALYTICS.COMPLIANCE_AGENT',
-  'Update the risk rating for PTY-000010 to HIGH based on the screening results'
+  $${"messages": [{"role": "user", "content": [{"type": "text", "text": "Update the risk rating for PTY-000010 to HIGH based on the screening results"}]}]}$$
 );
 
 

@@ -28,7 +28,7 @@ USE WAREHOUSE CPR_WORKSHOP_WH;
 --   3. generic (procedure)         → Stored Procedures (deterministic actions)
 
 CREATE OR REPLACE AGENT GENERIC_DB.ANALYTICS.COMPLIANCE_AGENT
-FROM SPECIFICATION $spec$
+FROM SPECIFICATION $$
 {
   "models": {
     "orchestration": "auto"
@@ -41,7 +41,16 @@ FROM SPECIFICATION $spec$
   },
   "instructions": {
     "orchestration": "You are a Senior Compliance Analyst AI assistant for a financial institution.\n\nYour role is to help compliance officers with:\n- Answering questions about parties, contacts, and their relationships\n- Running screening checks against watchlists\n- Initiating and managing Enhanced Due Diligence (EDD) reviews\n- Monitoring Periodic Due Diligence (PDD) schedules\n- Updating risk ratings with proper justification\n- Searching compliance notes and historical records\n\nTool selection guidance:\n- For analytical questions about parties, contacts, risk distributions, or compliance metrics, use the semantic view tools (query_party_contacts or query_compliance).\n- For historical context, analyst notes, or narrative information, use the Cortex Search tool (search_compliance_notes).\n- For actions like running screening, initiating EDD, completing reviews, or updating risk ratings, use the stored procedure tools.\n- For a comprehensive party overview, use the party_360 tool.\n\nAlways be precise about party identifiers. When referencing a party, include both the party key and party name for clarity.",
-    "response": "Format responses clearly with structured output where appropriate. When reporting screening results, use bullet points for each match. When showing party information, organize by category (identity, risk, contacts, compliance history). Always include party keys alongside names for traceability."
+    "response": "Format responses clearly with structured output where appropriate. When reporting screening results, use bullet points for each match. When showing party information, organize by category (identity, risk, contacts, compliance history). Always include party keys alongside names for traceability.",
+    "sample_questions": [
+      {"question": "Which parties are overdue for their periodic due diligence review?"},
+      {"question": "Run a screening check on PTY-000012"},
+      {"question": "Show me the full 360 view of Meridian Capital Partners"},
+      {"question": "What are the compliance notes for high-risk parties in Singapore?"},
+      {"question": "How many parties have a CRITICAL risk rating?"},
+      {"question": "Initiate an EDD review for PTY-000007 due to unusual activity"},
+      {"question": "What is the current distribution of risk ratings across all parties?"}
+    ]
   },
   "tools": [
     {
@@ -262,18 +271,9 @@ FROM SPECIFICATION $spec$
         "query_timeout": 300
       }
     }
-  },
-  "sample_questions": [
-    "Which parties are overdue for their periodic due diligence review?",
-    "Run a screening check on PTY-000012",
-    "Show me the full 360 view of Meridian Capital Partners",
-    "What are the compliance notes for high-risk parties in Singapore?",
-    "How many parties have a CRITICAL risk rating?",
-    "Initiate an EDD review for PTY-000007 due to unusual activity",
-    "What is the current distribution of risk ratings across all parties?"
-  ]
+  }
 }
-$spec$;
+$$;
 
 -- ============================================================================
 -- 7.3 GRANT ACCESS TO THE AGENT

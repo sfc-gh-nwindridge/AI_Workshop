@@ -365,7 +365,7 @@ AS
 BEGIN
     LET v_result VARCHAR;
 
-    SELECT OBJECT_CONSTRUCT(
+    v_result := (SELECT OBJECT_CONSTRUCT(
         'party_profile', (
             SELECT OBJECT_CONSTRUCT(
                 'party_key', pp.PARTY_PROFILE_ID,
@@ -456,8 +456,8 @@ BEGIN
             FROM GENERIC_DB.COMPLIANCE.PDD_SCHEDULE p
             WHERE p.PARTY_KEY = :P_PARTY_KEY
         )
-    )::VARCHAR INTO :v_result
-    FROM TABLE(GENERATOR(ROWCOUNT => 1));
+    )::VARCHAR
+    FROM TABLE(GENERATOR(ROWCOUNT => 1)));
 
     RETURN :v_result;
 END;

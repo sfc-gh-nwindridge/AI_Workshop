@@ -61,68 +61,68 @@ CREATE OR REPLACE SEMANTIC VIEW GENERIC_DB.ANALYTICS.PARTY_CONTACTS_SV
 
   DIMENSIONS (
     -- Party dimensions
-    party_profile.PARTY_NAME
+    party_profile.PARTY_NAME AS PARTY_NAME
       WITH SYNONYMS = ('name', 'company name', 'entity name', 'client name')
       COMMENT = 'Legal name of the party or entity',
 
-    party_profile.PARTY_PROFILE_ID
+    party_profile.PARTY_PROFILE_ID AS PARTY_PROFILE_ID
       WITH SYNONYMS = ('party id', 'party identifier', 'client id', 'party key')
       COMMENT = 'Unique party identifier in PTY-NNNNNN format',
 
-    party_master.STATUS_CODE
+    party_master.STATUS_CODE AS STATUS_CODE
       WITH SYNONYMS = ('party status', 'account status', 'active status')
       COMMENT = 'Party status code: A=Active, I=Inactive, C=Closed, S=Suspended',
 
-    party_profile.JURISDICTION_CD
+    party_profile.JURISDICTION_CD AS JURISDICTION_CD
       WITH SYNONYMS = ('jurisdiction', 'regulatory jurisdiction', 'registered jurisdiction')
       COMMENT = 'Regulatory jurisdiction where the party is registered',
 
-    party_profile.COUNTRY_CD
+    party_profile.COUNTRY_CD AS COUNTRY_CD
       WITH SYNONYMS = ('country', 'country code', 'domicile')
       COMMENT = 'Two-letter ISO country code of the party',
 
-    party_profile.LEGAL_FORM_CD
+    party_profile.LEGAL_FORM_CD AS LEGAL_FORM_CD
       WITH SYNONYMS = ('legal form', 'entity type', 'company type', 'legal structure')
       COMMENT = 'Legal form of the entity (e.g. LLC, PLC, GmbH, AG, KK)',
 
-    party_master.BASE_CURRENCY_CD
+    party_master.BASE_CURRENCY_CD AS BASE_CURRENCY_CD
       WITH SYNONYMS = ('currency', 'base currency')
       COMMENT = 'Base operating currency of the party',
 
-    party_location.NATION_CODE
+    party_location.location_country AS NATION_CODE
       WITH SYNONYMS = ('location country', 'address country', 'office country')
       COMMENT = 'Country code of the party location or registered address',
 
-    party_location.LOCALITY
+    party_location.LOCALITY AS LOCALITY
       WITH SYNONYMS = ('city', 'town', 'location')
       COMMENT = 'City or locality of the party address',
 
-    party_location.REGION_CODE
+    party_location.REGION_CODE AS REGION_CODE
       WITH SYNONYMS = ('region', 'state', 'province')
       COMMENT = 'Region or state code of the party address',
 
     -- Contact dimensions
-    contacts.DISPLAY_NAME
+    contacts.contact_display_name AS DISPLAY_NAME
       WITH SYNONYMS = ('contact name', 'person name', 'individual name')
       COMMENT = 'Full display name of the contact individual',
 
-    contacts.NATION_CODE AS CONTACT_NATION_CODE
+    contacts.contact_nationality AS NATION_CODE
       WITH SYNONYMS = ('nationality', 'contact country', 'citizenship')
       COMMENT = 'Nationality or country code of the contact',
 
-    contacts.STATUS_CODE AS CONTACT_STATUS_CODE
+    contacts.contact_status AS STATUS_CODE
       WITH SYNONYMS = ('contact status')
       COMMENT = 'Contact status: A=Active, I=Inactive',
 
-    contact_relationships.RELATIONSHIP_TYPE_CD
+    contact_relationships.relationship_type AS RELATIONSHIP_TYPE_CD
       WITH SYNONYMS = ('role', 'contact role', 'relationship', 'position')
       COMMENT = 'Type of relationship (e.g. DIRECTOR, UBO, SIGNATORY, SHAREHOLDER)',
 
-    contact_relationships.RELATIONSHIP_ROLE_CD
+    contact_relationships.relationship_role AS RELATIONSHIP_ROLE_CD
       WITH SYNONYMS = ('role code', 'function')
       COMMENT = 'Specific role code within the relationship',
 
-    contact_relationships.ACTIVE_FLAG
+    contact_relationships.relationship_active AS ACTIVE_FLAG
       WITH SYNONYMS = ('active relationship', 'current relationship')
       COMMENT = 'Whether the contact relationship is currently active (Y/N)'
   )
@@ -195,13 +195,23 @@ CREATE OR REPLACE SEMANTIC VIEW GENERIC_DB.ANALYTICS.COMPLIANCE_SV
       review_queue (PARTY_KEY) REFERENCES party_profile (PARTY_PROFILE_ID)
   )
 
+  FACTS (
+    screening.match_score AS MATCH_SCORE
+      WITH SYNONYMS = ('screening score', 'match confidence', 'hit score')
+      COMMENT = 'Numeric match confidence score from screening (0-100)',
+
+    edd_reviews.edd_risk_score AS RISK_SCORE
+      WITH SYNONYMS = ('EDD risk score', 'review risk score')
+      COMMENT = 'Risk score assigned during EDD review (1-10)'
+  )
+
   DIMENSIONS (
     -- Party context
     party_profile.party_name AS PARTY_NAME
       WITH SYNONYMS = ('name', 'entity name', 'client name', 'company')
       COMMENT = 'Legal name of the party',
 
-    party_profile.PARTY_PROFILE_ID
+    party_profile.PARTY_PROFILE_ID AS PARTY_PROFILE_ID
       WITH SYNONYMS = ('party id', 'party key', 'client id')
       COMMENT = 'Unique party identifier in PTY-NNNNNN format',
 
@@ -214,11 +224,11 @@ CREATE OR REPLACE SEMANTIC VIEW GENERIC_DB.ANALYTICS.COMPLIANCE_SV
       COMMENT = 'Country code of the party',
 
     -- Risk rating dimensions
-    risk_ratings.current_rating AS current_risk_rating
+    risk_ratings.current_risk_rating AS CURRENT_RATING
       WITH SYNONYMS = ('risk rating', 'risk level', 'current risk', 'risk category')
       COMMENT = 'Current risk rating: LOW, MEDIUM, HIGH, or CRITICAL',
 
-    risk_ratings.previous_rating AS previous_risk_rating
+    risk_ratings.previous_risk_rating AS PREVIOUS_RATING
       WITH SYNONYMS = ('old rating', 'prior rating', 'previous risk')
       COMMENT = 'Previous risk rating before the last change',
 
@@ -238,7 +248,7 @@ CREATE OR REPLACE SEMANTIC VIEW GENERIC_DB.ANALYTICS.COMPLIANCE_SV
     screening.screening_id AS screening_id
       COMMENT = 'Unique screening result identifier',
 
-    screening.match_type AS screening_match_type
+    screening.screening_match_type AS MATCH_TYPE
       WITH SYNONYMS = ('match result', 'screening result', 'hit type')
       COMMENT = 'Screening match type: EXACT, FUZZY, PARTIAL, or NO_MATCH',
 
@@ -246,11 +256,11 @@ CREATE OR REPLACE SEMANTIC VIEW GENERIC_DB.ANALYTICS.COMPLIANCE_SV
       WITH SYNONYMS = ('watchlist', 'sanctions list', 'list name')
       COMMENT = 'Name of matched watchlist: OFAC, EU_SANCTIONS, HMT, UN_SCL, PEP_LIST, INTERNAL',
 
-    screening.risk_category AS screening_risk_category
+    screening.screening_risk_category AS RISK_CATEGORY
       WITH SYNONYMS = ('screening risk', 'threat category')
       COMMENT = 'Risk category of the match: TERRORISM, MONEY_LAUNDERING, SANCTIONS, PEP, PROLIFERATION',
 
-    screening.status AS screening_status
+    screening.screening_status AS STATUS
       WITH SYNONYMS = ('screening status', 'screening outcome')
       COMMENT = 'Status of the screening: COMPLETED, OPEN, CLEARED, CONFIRMED, ESCALATED',
 
@@ -262,52 +272,52 @@ CREATE OR REPLACE SEMANTIC VIEW GENERIC_DB.ANALYTICS.COMPLIANCE_SV
       COMMENT = 'Date and time the screening was performed',
 
     -- EDD dimensions
-    edd_reviews.review_id AS edd_review_id
+    edd_reviews.edd_review_id AS REVIEW_ID
       WITH SYNONYMS = ('EDD id', 'review identifier')
       COMMENT = 'Unique Enhanced Due Diligence review identifier',
 
-    edd_reviews.trigger_reason AS edd_trigger_reason
+    edd_reviews.edd_trigger_reason AS TRIGGER_REASON
       WITH SYNONYMS = ('EDD reason', 'why EDD', 'trigger', 'EDD trigger')
       COMMENT = 'Reason EDD was triggered: WATCHLIST_MATCH, HIGH_RISK_JURISDICTION, PEP, COMPLEX_STRUCTURE, UNUSUAL_ACTIVITY, PERIODIC',
 
-    edd_reviews.status AS edd_status
+    edd_reviews.edd_status AS STATUS
       WITH SYNONYMS = ('EDD status', 'review status', 'EDD state')
       COMMENT = 'EDD review status: PENDING, IN_PROGRESS, COMPLETED, OVERDUE',
 
-    edd_reviews.recommendation AS edd_recommendation
+    edd_reviews.edd_recommendation AS RECOMMENDATION
       WITH SYNONYMS = ('EDD decision', 'review decision', 'EDD outcome')
       COMMENT = 'EDD recommendation: APPROVE, REJECT, ESCALATE, MONITOR',
 
-    edd_reviews.assigned_to AS edd_assigned_to
+    edd_reviews.edd_assigned_to AS ASSIGNED_TO
       WITH SYNONYMS = ('EDD analyst', 'assigned analyst', 'who is reviewing')
       COMMENT = 'Analyst assigned to the EDD review',
 
-    edd_reviews.due_date AS edd_due_date
+    edd_reviews.edd_due_date AS DUE_DATE
       WITH SYNONYMS = ('EDD due date', 'review deadline')
       COMMENT = 'Due date for EDD review completion',
 
     -- PDD dimensions
-    pdd_schedule.review_cycle AS pdd_review_cycle
+    pdd_schedule.pdd_review_cycle AS REVIEW_CYCLE
       WITH SYNONYMS = ('review frequency', 'PDD cycle', 'review cycle')
       COMMENT = 'Periodic review frequency: ANNUAL, SEMI_ANNUAL, QUARTERLY',
 
-    pdd_schedule.status AS pdd_status
+    pdd_schedule.pdd_status AS STATUS
       WITH SYNONYMS = ('PDD status', 'periodic review status')
       COMMENT = 'PDD status: ON_TRACK, DUE_SOON, OVERDUE, COMPLETED',
 
-    pdd_schedule.risk_tier AS pdd_risk_tier
+    pdd_schedule.pdd_risk_tier AS RISK_TIER
       WITH SYNONYMS = ('PDD risk tier', 'review risk tier')
       COMMENT = 'Risk tier driving the PDD schedule: LOW, MEDIUM, HIGH, CRITICAL',
 
-    pdd_schedule.next_review_date AS pdd_next_review_date
+    pdd_schedule.pdd_next_review_date AS NEXT_REVIEW_DATE
       WITH SYNONYMS = ('next PDD', 'next review', 'next periodic review')
       COMMENT = 'Date of the next scheduled periodic review',
 
-    pdd_schedule.last_review_date AS pdd_last_review_date
+    pdd_schedule.pdd_last_review_date AS LAST_REVIEW_DATE
       WITH SYNONYMS = ('last PDD', 'last review', 'last periodic review')
       COMMENT = 'Date of the most recent completed periodic review',
 
-    pdd_schedule.assigned_to AS pdd_assigned_to
+    pdd_schedule.pdd_assigned_to AS ASSIGNED_TO
       COMMENT = 'Analyst assigned to the periodic review',
 
     -- Review queue dimensions
@@ -315,27 +325,17 @@ CREATE OR REPLACE SEMANTIC VIEW GENERIC_DB.ANALYTICS.COMPLIANCE_SV
       WITH SYNONYMS = ('queue category', 'work type', 'item type')
       COMMENT = 'Type of queued item: SCREENING, EDD, PDD, RISK_ESCALATION, ESCALATION',
 
-    review_queue.priority AS queue_priority
+    review_queue.queue_priority AS PRIORITY
       WITH SYNONYMS = ('priority', 'urgency', 'importance')
       COMMENT = 'Priority of the queue item: LOW, MEDIUM, HIGH, CRITICAL',
 
-    review_queue.status AS queue_status
+    review_queue.queue_status AS STATUS
       WITH SYNONYMS = ('queue status', 'work status', 'item status')
       COMMENT = 'Status of the queue item: PENDING, ASSIGNED, IN_PROGRESS, COMPLETED',
 
-    review_queue.assigned_to AS queue_assigned_to
+    review_queue.queue_assigned_to AS ASSIGNED_TO
       WITH SYNONYMS = ('queue analyst', 'assigned to')
       COMMENT = 'Analyst assigned to the queue item'
-  )
-
-  FACTS (
-    screening.match_score AS MATCH_SCORE
-      WITH SYNONYMS = ('screening score', 'match confidence', 'hit score')
-      COMMENT = 'Numeric match confidence score from screening (0-100)',
-
-    edd_reviews.risk_score AS EDD_RISK_SCORE
-      WITH SYNONYMS = ('EDD risk score', 'review risk score')
-      COMMENT = 'Risk score assigned during EDD review (1-10)'
   )
 
   METRICS (
@@ -423,11 +423,10 @@ CREATE OR REPLACE SEMANTIC VIEW GENERIC_DB.ANALYTICS.COMPLIANCE_SV
 SHOW SEMANTIC VIEWS IN SCHEMA GENERIC_DB.ANALYTICS;
 
 -- Check dimensions and metrics for each view
-SHOW SEMANTIC DIMENSIONS IN SEMANTIC VIEW GENERIC_DB.ANALYTICS.PARTY_CONTACTS_SV;
-SHOW SEMANTIC METRICS IN SEMANTIC VIEW GENERIC_DB.ANALYTICS.PARTY_CONTACTS_SV;
-
-SHOW SEMANTIC DIMENSIONS IN SEMANTIC VIEW GENERIC_DB.ANALYTICS.COMPLIANCE_SV;
-SHOW SEMANTIC FACTS IN SEMANTIC VIEW GENERIC_DB.ANALYTICS.COMPLIANCE_SV;
-SHOW SEMANTIC METRICS IN SEMANTIC VIEW GENERIC_DB.ANALYTICS.COMPLIANCE_SV;
+SHOW SEMANTIC DIMENSIONS IN GENERIC_DB.ANALYTICS.PARTY_CONTACTS_SV;
+SHOW SEMANTIC METRICS IN GENERIC_DB.ANALYTICS.PARTY_CONTACTS_SV;
+SHOW SEMANTIC DIMENSIONS IN GENERIC_DB.ANALYTICS.COMPLIANCE_SV;
+SHOW SEMANTIC FACTS IN GENERIC_DB.ANALYTICS.COMPLIANCE_SV;
+SHOW SEMANTIC METRICS IN GENERIC_DB.ANALYTICS.COMPLIANCE_SV;
 
 SELECT 'Semantic views created! Run 05_stored_procedures.sql next.' AS STATUS;
