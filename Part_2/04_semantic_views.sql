@@ -50,82 +50,79 @@ CREATE OR REPLACE SEMANTIC VIEW GENERIC_DB.ANALYTICS.PARTY_CONTACTS_SV
 
   RELATIONSHIPS (
     profile_to_master AS
-      party_profile (PARTY_PROFILE_ID) REFERENCES party_master (PARTY_KEY)
-      COMMENT = 'Party profile links to party master via PARTY_PROFILE_ID = PARTY_KEY',
+      party_profile (PARTY_PROFILE_ID) REFERENCES party_master (PARTY_KEY),
 
     location_to_master AS
-      party_location (PARTY_KEY) REFERENCES party_master
-      COMMENT = 'Party location links to party master',
+      party_location (PARTY_KEY) REFERENCES party_master,
 
     relationship_to_contact AS
       contact_relationships (CONTACT_SURROGATE_UUID) REFERENCES contacts
-      COMMENT = 'Contact relationship links to contact record'
   )
 
   DIMENSIONS (
     -- Party dimensions
-    party_profile.party_name AS PARTY_NAME
+    party_profile.PARTY_NAME
       WITH SYNONYMS = ('name', 'company name', 'entity name', 'client name')
       COMMENT = 'Legal name of the party or entity',
 
-    party_profile.party_key AS PARTY_PROFILE_ID
-      WITH SYNONYMS = ('party id', 'party identifier', 'client id')
+    party_profile.PARTY_PROFILE_ID
+      WITH SYNONYMS = ('party id', 'party identifier', 'client id', 'party key')
       COMMENT = 'Unique party identifier in PTY-NNNNNN format',
 
-    party_master.status_code AS STATUS_CODE
+    party_master.STATUS_CODE
       WITH SYNONYMS = ('party status', 'account status', 'active status')
       COMMENT = 'Party status code: A=Active, I=Inactive, C=Closed, S=Suspended',
 
-    party_profile.jurisdiction_cd AS JURISDICTION_CD
+    party_profile.JURISDICTION_CD
       WITH SYNONYMS = ('jurisdiction', 'regulatory jurisdiction', 'registered jurisdiction')
       COMMENT = 'Regulatory jurisdiction where the party is registered',
 
-    party_profile.country_cd AS COUNTRY_CD
+    party_profile.COUNTRY_CD
       WITH SYNONYMS = ('country', 'country code', 'domicile')
       COMMENT = 'Two-letter ISO country code of the party',
 
-    party_profile.legal_form_cd AS LEGAL_FORM_CD
+    party_profile.LEGAL_FORM_CD
       WITH SYNONYMS = ('legal form', 'entity type', 'company type', 'legal structure')
       COMMENT = 'Legal form of the entity (e.g. LLC, PLC, GmbH, AG, KK)',
 
-    party_master.base_currency_cd AS BASE_CURRENCY_CD
+    party_master.BASE_CURRENCY_CD
       WITH SYNONYMS = ('currency', 'base currency')
       COMMENT = 'Base operating currency of the party',
 
-    party_location.nation_code AS location_country
+    party_location.NATION_CODE
       WITH SYNONYMS = ('location country', 'address country', 'office country')
       COMMENT = 'Country code of the party location or registered address',
 
-    party_location.locality AS locality
+    party_location.LOCALITY
       WITH SYNONYMS = ('city', 'town', 'location')
       COMMENT = 'City or locality of the party address',
 
-    party_location.region_code AS region_code
+    party_location.REGION_CODE
       WITH SYNONYMS = ('region', 'state', 'province')
       COMMENT = 'Region or state code of the party address',
 
     -- Contact dimensions
-    contacts.display_name AS contact_display_name
+    contacts.DISPLAY_NAME
       WITH SYNONYMS = ('contact name', 'person name', 'individual name')
       COMMENT = 'Full display name of the contact individual',
 
-    contacts.nation_code AS contact_nationality
+    contacts.NATION_CODE AS CONTACT_NATION_CODE
       WITH SYNONYMS = ('nationality', 'contact country', 'citizenship')
       COMMENT = 'Nationality or country code of the contact',
 
-    contacts.status_code AS contact_status
+    contacts.STATUS_CODE AS CONTACT_STATUS_CODE
       WITH SYNONYMS = ('contact status')
       COMMENT = 'Contact status: A=Active, I=Inactive',
 
-    contact_relationships.relationship_type_cd AS relationship_type
+    contact_relationships.RELATIONSHIP_TYPE_CD
       WITH SYNONYMS = ('role', 'contact role', 'relationship', 'position')
       COMMENT = 'Type of relationship (e.g. DIRECTOR, UBO, SIGNATORY, SHAREHOLDER)',
 
-    contact_relationships.relationship_role_cd AS relationship_role
+    contact_relationships.RELATIONSHIP_ROLE_CD
       WITH SYNONYMS = ('role code', 'function')
       COMMENT = 'Specific role code within the relationship',
 
-    contact_relationships.active_flag AS relationship_active
+    contact_relationships.ACTIVE_FLAG
       WITH SYNONYMS = ('active relationship', 'current relationship')
       COMMENT = 'Whether the contact relationship is currently active (Y/N)'
   )
@@ -183,24 +180,19 @@ CREATE OR REPLACE SEMANTIC VIEW GENERIC_DB.ANALYTICS.COMPLIANCE_SV
 
   RELATIONSHIPS (
     risk_to_party AS
-      risk_ratings (PARTY_KEY) REFERENCES party_profile (PARTY_PROFILE_ID)
-      COMMENT = 'Risk rating links to party profile',
+      risk_ratings (PARTY_KEY) REFERENCES party_profile (PARTY_PROFILE_ID),
 
     screening_to_party AS
-      screening (PARTY_KEY) REFERENCES party_profile (PARTY_PROFILE_ID)
-      COMMENT = 'Screening result links to party profile',
+      screening (PARTY_KEY) REFERENCES party_profile (PARTY_PROFILE_ID),
 
     edd_to_party AS
-      edd_reviews (PARTY_KEY) REFERENCES party_profile (PARTY_PROFILE_ID)
-      COMMENT = 'EDD review links to party profile',
+      edd_reviews (PARTY_KEY) REFERENCES party_profile (PARTY_PROFILE_ID),
 
     pdd_to_party AS
-      pdd_schedule (PARTY_KEY) REFERENCES party_profile (PARTY_PROFILE_ID)
-      COMMENT = 'PDD schedule links to party profile',
+      pdd_schedule (PARTY_KEY) REFERENCES party_profile (PARTY_PROFILE_ID),
 
     queue_to_party AS
       review_queue (PARTY_KEY) REFERENCES party_profile (PARTY_PROFILE_ID)
-      COMMENT = 'Review queue item links to party profile'
   )
 
   DIMENSIONS (
@@ -209,7 +201,7 @@ CREATE OR REPLACE SEMANTIC VIEW GENERIC_DB.ANALYTICS.COMPLIANCE_SV
       WITH SYNONYMS = ('name', 'entity name', 'client name', 'company')
       COMMENT = 'Legal name of the party',
 
-    party_profile.party_key AS PARTY_PROFILE_ID
+    party_profile.PARTY_PROFILE_ID
       WITH SYNONYMS = ('party id', 'party key', 'client id')
       COMMENT = 'Unique party identifier in PTY-NNNNNN format',
 
