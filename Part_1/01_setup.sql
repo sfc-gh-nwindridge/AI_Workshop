@@ -41,13 +41,13 @@ CREATE OR REPLACE SCHEMA KYC_SUPERHERO_DB.ANALYTICS
 -- ============================================================================
 -- 1.3 GIT INTEGRATION
 -- ============================================================================
--- The superhero documents (ID cards + KYC forms) are hosted on GitHub.
+-- All documents (ID cards + KYC forms) are in the resources/ folder of this repo.
 -- We use Snowflake's Git integration to bring them into a repository stage.
 -- API Integration was created in 00_demo_environment.sql (requires ACCOUNTADMIN).
 
 CREATE OR REPLACE GIT REPOSITORY KYC_SUPERHERO_DB.DOCUMENTS.SUPERHERO_REPO
   API_INTEGRATION = kyc_workshop_git_integration
-  ORIGIN = 'https://github.com/jumoral/snowflake_ai_innovation_day.git';
+  ORIGIN = 'https://github.com/sfc-gh-nwindridge/AI_Workshop.git';
 
 -- Fetch latest from remote
 ALTER GIT REPOSITORY KYC_SUPERHERO_DB.DOCUMENTS.SUPERHERO_REPO FETCH;
