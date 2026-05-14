@@ -71,7 +71,6 @@ GRANT DATABASE ROLE SNOWFLAKE.CORTEX_USER TO ROLE KYC_WORKSHOP_ROLE;
 CREATE OR REPLACE API INTEGRATION kyc_workshop_git_integration
   API_PROVIDER = git_https_api
   API_ALLOWED_PREFIXES = (
-    'https://github.com/jumoral/snowflake_ai_innovation_day',
     'https://github.com/sfc-gh-nwindridge'
   )
   ALLOWED_AUTHENTICATION_SECRETS = ALL
